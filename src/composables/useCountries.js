@@ -1,6 +1,12 @@
 import { ref } from 'vue'
 import axios from 'axios'
 
+const api = axios.create({
+  baseURL: 'https://countries.dev'
+})
+
+const countryCodes = ['BR', 'CO', 'NO', 'EE', 'PE', 'AR']
+
 export function useCountries() {
   const countries = ref([])
   const loading = ref(false)
@@ -10,18 +16,23 @@ export function useCountries() {
     loading.value = true
     error.value = null
     try {
-      //const { data } = await axios.get('https://restcountries.com/v3.1/all?fields=name,flags,region,population')
-      const { data } = await axios.get('https://restcountries.com/v3.1/alpha?codes=br,170,no,est,pe,ar')
+      const responses = await Promise.all(countryCodes.map(code =>
+        api.get(`/alpha/${code}`)
+      ))
 
-
-      countries.value = data.map(c => ({
-        name: c.name.common,
-        flag: c.flags.png.replace('w320', 'w80'),
-        population: c.population,
-        region: c.region
-      }))
+      countries.value = responses
+        .map(({ data }) => ({
+          name: data.name,
+          flag: data.flags.png,
+          population: data.population,
+          region: data.region
+        }))
     } catch (err) {
-      error.value = 'Erro ao buscar países' + err
+      if (err.response) {
+        error.value = `Could not load countries (API error ${err.response.status}).`
+      } else {
+        error.value = err.message || 'Could not connect to the countries API.'
+      }
     } finally {
       loading.value = false
     }
